@@ -46,3 +46,6 @@ node_modules/
 *.zip
 *.tar.gz
 *.rar
+
+# Local secrets/config
+staylio-ai-agent/config.env
