@@ -1,0 +1,92 @@
+/* Custom Swiper Styles for Staylio */
+
+/* Pagination bullets */
+.swiper-pagination-bullet {
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+
+.swiper-pagination-bullet-active {
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  width: 32px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* Pagination container */
+.swiper-pagination {
+  bottom: 20px !important;
+}
+
+/* Smooth fade effect */
+.swiper-fade .swiper-slide {
+  transition-property: opacity;
+}
+
+/* Custom scrollbar for thumbnails */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #e5e7eb;
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
+}
+
+/* Hide scrollbar for Firefox */
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Glassmorphism effect */
+.backdrop-blur-sm {
+  backdrop-filter: blur(8px);
+}
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    to right,
+    #f0f0f0 0%,
+    #e0e0e0 20%,
+    #f0f0f0 40%,
+    #f0f0f0 100%
+  );
+  background-size: 1000px 100%;
+}
+
+/* Smooth zoom on hover */
+.group:hover img {
+  transform: scale(1.05);
+}
+
+/* Custom border width */
+.border-3 {
+  border-width: 3px;
+}

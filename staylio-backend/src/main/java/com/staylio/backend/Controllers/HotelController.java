@@ -1,266 +1,459 @@
 package com.staylio.backend.Controllers;
 
-import com.staylio.backend.model.Hotel;
 import com.staylio.backend.Service.HotelService;
+import com.staylio.backend.dto.HotelDTO;
+import com.staylio.backend.model.Hotel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/hotels")
+@CrossOrigin(origins = "*")
 public class HotelController {
 
     @Autowired
     private HotelService hotelService;
 
-    // GET - Get all hotels
-    @GetMapping
-    public ResponseEntity<List<Hotel>> getAllHotels() {
-        try {
-            List<Hotel> hotels = hotelService.getAllHotels();
-            if (hotels.isEmpty()) {
-                return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-            }
-            return new ResponseEntity<>(hotels, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
+    @Autowired
+    private com.staylio.backend.Service.ReviewService reviewService;
 
-    // GET - Get hotels by hostname (for host-specific access)
-    @GetMapping("/host/{hostname}")
-    public ResponseEntity<List<Hotel>> getHotelsByHostname(@PathVariable String hostname) {
-        try {
-            List<Hotel> hotels = hotelService.getHotelsByHostname(hostname);
-            return new ResponseEntity<>(hotels, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    // GET - Get hotels by host ID
-    @GetMapping("/hostId/{hostId}")
-    public ResponseEntity<List<Hotel>> getHotelsByHostId(@PathVariable Long hostId) {
-        try {
-            List<Hotel> hotels = hotelService.getHotelsByHostId(hostId);
-            return new ResponseEntity<>(hotels, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    // GET - Get hotel by ID
-    @GetMapping("/{id}")
-    public ResponseEntity<Hotel> getHotelById(@PathVariable Long id) {
-        try {
-            Optional<Hotel> hotel = hotelService.getHotelById(id);
-            if (hotel.isPresent()) {
-                return new ResponseEntity<>(hotel.get(), HttpStatus.OK);
-            } else {
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            }
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    // POST - Create new hotel
+    // Create hotel
     @PostMapping
     public ResponseEntity<?> createHotel(@RequestBody Hotel hotel) {
         try {
-            // Validate required fields
-            if (hotel.getName() == null || hotel.getName().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(createErrorResponse("Hotel name is required"));
-            }
-            if (hotel.getCity() == null || hotel.getCity().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(createErrorResponse("City is required"));
-            }
-            if (hotel.getPrice() == null || hotel.getPrice() <= 0) {
-                return ResponseEntity.badRequest().body(createErrorResponse("Valid price is required"));
-            }
-            if (hotel.getRating() == null || hotel.getRating() < 0 || hotel.getRating() > 5) {
-                return ResponseEntity.badRequest().body(createErrorResponse("Rating must be between 0 and 5"));
-            }
-
             Hotel createdHotel = hotelService.createHotel(hotel);
-            return new ResponseEntity<>(createdHotel, HttpStatus.CREATED);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.CREATED).body(HotelDTO.fromEntity(createdHotel));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(createErrorResponse("Failed to create hotel"));
+                    .body("Error creating hotel: " + e.getMessage());
         }
     }
 
-    // PUT - Update hotel
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateHotel(@PathVariable Long id, @RequestBody Hotel hotelDetails) {
+    // Get all hotels
+    @GetMapping
+    public ResponseEntity<List<HotelDTO>> getAllHotels() {
         try {
-            // Validate required fields
-            if (hotelDetails.getName() == null || hotelDetails.getName().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(createErrorResponse("Hotel name is required"));
-            }
-            if (hotelDetails.getCity() == null || hotelDetails.getCity().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(createErrorResponse("City is required"));
-            }
-            if (hotelDetails.getPrice() == null || hotelDetails.getPrice() <= 0) {
-                return ResponseEntity.badRequest().body(createErrorResponse("Valid price is required"));
-            }
-            if (hotelDetails.getRating() == null || hotelDetails.getRating() < 0 || hotelDetails.getRating() > 5) {
-                return ResponseEntity.badRequest().body(createErrorResponse("Rating must be between 0 and 5"));
-            }
-
-            Hotel updatedHotel = hotelService.updateHotel(id, hotelDetails);
-            return new ResponseEntity<>(updatedHotel, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            if (e.getMessage().contains("not found")) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(createErrorResponse("Hotel not found with id: " + id));
-            } else if (e.getMessage().contains("not authorized")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(createErrorResponse("Not authorized to update this hotel"));
-            }
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            List<Hotel> hotels = hotelService.getAllHotels();
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(createErrorResponse("Failed to update hotel"));
+            e.printStackTrace(); // Log the actual error
+            System.err.println("Error in getAllHotels: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    // DELETE - Delete hotel
+    // Get landing page hotels
+    @GetMapping("/landing")
+    public ResponseEntity<List<HotelDTO>> getLandingPageHotels() {
+        try {
+            List<Hotel> hotels = hotelService.getLandingPageHotels();
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Get hotel by ID
+    @GetMapping("/{id}")
+    public ResponseEntity<HotelDTO> getHotelById(@PathVariable Long id) {
+        try {
+            return hotelService.getHotelById(id)
+                    .map(hotel -> ResponseEntity.ok(HotelDTO.fromEntity(hotel)))
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Update hotel
+    @PutMapping("/{id}")
+    public ResponseEntity<HotelDTO> updateHotel(@PathVariable Long id, @RequestBody Hotel hotel) {
+        try {
+            Hotel updatedHotel = hotelService.updateHotel(id, hotel);
+            return ResponseEntity.ok(HotelDTO.fromEntity(updatedHotel));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Delete hotel
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteHotel(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteHotel(@PathVariable Long id) {
         try {
             hotelService.deleteHotel(id);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
-            if (e.getMessage().contains("not found")) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(createErrorResponse("Hotel not found with id: " + id));
-            } else if (e.getMessage().contains("not authorized")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(createErrorResponse("Not authorized to delete this hotel"));
-            }
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.notFound().build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(createErrorResponse("Failed to delete hotel"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    // PUT - Update hotel with ownership validation
-    @PutMapping("/{id}/host/{hostname}")
-    public ResponseEntity<?> updateHotelByHost(@PathVariable Long id, @PathVariable String hostname, @RequestBody Hotel hotelDetails) {
+    // Get hotels by host
+    @GetMapping("/host/{hostId}")
+    public ResponseEntity<List<HotelDTO>> getHotelsByHost(@PathVariable Long hostId) {
         try {
-            Hotel updatedHotel = hotelService.updateHotelByHost(id, hostname, hotelDetails);
-            return new ResponseEntity<>(updatedHotel, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            if (e.getMessage().contains("not found")) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(createErrorResponse("Hotel not found or not owned by host"));
-            } else if (e.getMessage().contains("not authorized")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(createErrorResponse("Not authorized to update this hotel"));
-            }
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            List<Hotel> hotels = hotelService.getHotelsByHost(hostId);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(createErrorResponse("Failed to update hotel"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    // DELETE - Delete hotel with ownership validation
-    @DeleteMapping("/{id}/host/{hostname}")
-    public ResponseEntity<?> deleteHotelByHost(@PathVariable Long id, @PathVariable String hostname) {
+    // Get hotels by owner
+    @GetMapping("/owner/{ownerId}")
+    public ResponseEntity<List<HotelDTO>> getHotelsByOwner(@PathVariable Long ownerId) {
         try {
-            hotelService.deleteHotelByHost(id, hostname);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            if (e.getMessage().contains("not found")) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(createErrorResponse("Hotel not found or not owned by host"));
-            } else if (e.getMessage().contains("not authorized")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(createErrorResponse("Not authorized to delete this hotel"));
-            }
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            List<Hotel> hotels = hotelService.getHotelsByOwner(ownerId);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(createErrorResponse("Failed to delete hotel"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    // Helper method to create error response
-    private Map<String, Object> createErrorResponse(String message) {
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("error", true);
-        errorResponse.put("message", message);
-        errorResponse.put("timestamp", System.currentTimeMillis());
-        return errorResponse;
-    }
-
-    // Test endpoint to verify hotel operations
-    @GetMapping("/test")
-    public ResponseEntity<Map<String, Object>> testHotelOperations() {
-        Map<String, Object> testResponse = new HashMap<>();
-        testResponse.put("message", "Hotel API is working");
-        testResponse.put("timestamp", System.currentTimeMillis());
-        testResponse.put("totalHotels", hotelService.getAllHotels().size());
-        testResponse.put("endpoints", List.of(
-                "GET /api/hotels - Get all hotels",
-                "GET /api/hotels/{id} - Get hotel by ID",
-                "POST /api/hotels - Create hotel",
-                "PUT /api/hotels/{id} - Update hotel",
-                "DELETE /api/hotels/{id} - Delete hotel",
-                "GET /api/hotels/host/{hostname} - Get hotels by hostname",
-                "PUT /api/hotels/{id}/host/{hostname} - Update hotel by host",
-                "DELETE /api/hotels/{id}/host/{hostname} - Delete hotel by host"
-        ));
-        return ResponseEntity.ok(testResponse);
-    }
-
-    // Debug endpoint to test specific hotel operations
-    @PostMapping("/debug/test-crud")
-    public ResponseEntity<?> testCRUDOperations(@RequestBody Map<String, Object> testData) {
-        Map<String, Object> results = new HashMap<>();
-
+    // Get active hotels
+    @GetMapping("/active")
+    public ResponseEntity<List<HotelDTO>> getActiveHotels() {
         try {
-            // Test Create
-            Hotel testHotel = new Hotel();
-            testHotel.setName("Debug Test Hotel");
-            testHotel.setCity("Debug City");
-            testHotel.setPrice(999);
-            testHotel.setRating(4.0);
-            testHotel.setReviews(10);
-            testHotel.setImage("https://example.com/test.jpg");
-            testHotel.setHostname((String) testData.get("hostname"));
+            List<Hotel> hotels = hotelService.getActiveHotels();
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
-            Hotel created = hotelService.createHotel(testHotel);
-            results.put("created", created);
+    // Get featured hotels
+    @GetMapping("/featured")
+    public ResponseEntity<List<HotelDTO>> getFeaturedHotels() {
+        try {
+            List<Hotel> hotels = hotelService.getFeaturedHotels();
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
-            // Test Update
-            created.setName("Debug Test Hotel - Updated");
-            created.setPrice(1099);
-            Hotel updated = hotelService.updateHotel(created.getId(), created);
-            results.put("updated", updated);
+    // Get hotels by city
+    @GetMapping("/city/{city}")
+    public ResponseEntity<List<HotelDTO>> getHotelsByCity(@PathVariable String city) {
+        try {
+            List<Hotel> hotels = hotelService.getHotelsByCity(city);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
-            // Test Delete
-            hotelService.deleteHotel(created.getId());
-            results.put("deleted", true);
-            results.put("message", "All CRUD operations successful");
+    // Get hotels by state
+    @GetMapping("/state/{state}")
+    public ResponseEntity<List<HotelDTO>> getHotelsByState(@PathVariable String state) {
+        try {
+            List<Hotel> hotels = hotelService.getHotelsByState(state);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
-            return ResponseEntity.ok(results);
+    // Get hotels by country
+    @GetMapping("/country/{country}")
+    public ResponseEntity<List<HotelDTO>> getHotelsByCountry(@PathVariable String country) {
+        try {
+            List<Hotel> hotels = hotelService.getHotelsByCountry(country);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Get hotels by price range
+    @GetMapping("/price-range")
+    public ResponseEntity<List<HotelDTO>> getHotelsByPriceRange(
+            @RequestParam BigDecimal minPrice,
+            @RequestParam BigDecimal maxPrice) {
+        try {
+            List<Hotel> hotels = hotelService.getHotelsByPriceRange(minPrice, maxPrice);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Get hotels by minimum rating
+    @GetMapping("/rating/{minRating}")
+    public ResponseEntity<List<HotelDTO>> getHotelsByMinimumRating(@PathVariable Double minRating) {
+        try {
+            List<Hotel> hotels = hotelService.getHotelsByMinimumRating(minRating);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Get hotels by guest capacity
+    @GetMapping("/capacity/{guests}")
+    public ResponseEntity<List<HotelDTO>> getHotelsByGuestCapacity(@PathVariable Integer guests) {
+        try {
+            List<Hotel> hotels = hotelService.getHotelsByGuestCapacity(guests);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Search hotels
+    @GetMapping("/search")
+    public ResponseEntity<List<HotelDTO>> searchHotels(@RequestParam String keyword) {
+        try {
+            List<Hotel> hotels = hotelService.searchHotels(keyword);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Get hotels with available rooms
+    @GetMapping("/available")
+    public ResponseEntity<List<HotelDTO>> getHotelsWithAvailableRooms() {
+        try {
+            List<Hotel> hotels = hotelService.getHotelsWithAvailableRooms();
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Get nearby hotels
+    @GetMapping("/nearby")
+    public ResponseEntity<List<HotelDTO>> getNearbyHotels(
+            @RequestParam Double latitude,
+            @RequestParam Double longitude,
+            @RequestParam(defaultValue = "10.0") Double radius) {
+        try {
+            List<Hotel> hotels = hotelService.getNearbyHotels(latitude, longitude, radius);
+            List<HotelDTO> hotelDTOs = hotels.stream()
+                    .map(HotelDTO::fromEntity)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(hotelDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Check if hotel is claimed
+    @GetMapping("/{id}/claim-status")
+    public ResponseEntity<ClaimStatusResponse> getHotelClaimStatus(@PathVariable Long id) {
+        try {
+            return hotelService.getHotelById(id)
+                    .map(hotel -> {
+                        ClaimStatusResponse response = new ClaimStatusResponse();
+                        response.setHotelId(hotel.getId());
+                        response.setHotelOwnerId(hotel.getHotelOwnerId());
+                        response.setClaimed(hotel.getHotelOwnerId() != null && hotel.getHotelOwnerId() > 0);
+                        return ResponseEntity.ok(response);
+                    })
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Add Review with Eligibility Check
+    @PostMapping("/{hotelId}/reviews")
+    public ResponseEntity<?> addReview(@PathVariable Long hotelId,
+            @RequestBody com.staylio.backend.model.Review review) {
+        try {
+            if (review.getUserId() == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User must be logged in.");
+            }
+            review.setHotelId(hotelId);
+
+            if (!reviewService.canUserReview(hotelId, review.getUserId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("You can only review a hotel after completing your stay.");
+            }
+
+            return ResponseEntity.ok(reviewService.addReview(review));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error adding review");
+        }
+    }
+
+    // Check Review Eligibility
+    @GetMapping("/{hotelId}/review-eligibility")
+    public ResponseEntity<?> checkReviewEligibility(@PathVariable Long hotelId, @RequestParam Long userId) {
+        try {
+            boolean canReview = reviewService.canUserReview(hotelId, userId);
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("canReview", canReview);
+            response.put("reason", canReview ? null : "COMPLETED_STAY_REQUIRED");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Inner class for claim status response
+    public static class ClaimStatusResponse {
+        private Long hotelId;
+        private Long hotelOwnerId;
+        private boolean claimed;
+
+        public Long getHotelId() {
+            return hotelId;
+        }
+
+        public void setHotelId(Long hotelId) {
+            this.hotelId = hotelId;
+        }
+
+        public Long getHotelOwnerId() {
+            return hotelOwnerId;
+        }
+
+        public void setHotelOwnerId(Long hotelOwnerId) {
+            this.hotelOwnerId = hotelOwnerId;
+        }
+
+        public boolean isClaimed() {
+            return claimed;
+        }
+
+        public void setClaimed(boolean claimed) {
+            this.claimed = claimed;
+        }
+    }
+
+    // Get personalized recommendations for user
+    @PostMapping("/recommendations")
+    public ResponseEntity<?> getPersonalizedRecommendations(@RequestBody RecommendationRequest request) {
+        try {
+            if (request.getUserId() == null) {
+                return ResponseEntity.badRequest().body("User ID is required");
+            }
+
+            // Call Flask AI service for recommendations
+            List<Long> recommendedHotelIds = hotelService.getPersonalizedRecommendations(
+                request.getUserId(), 
+                request.getCity(), 
+                request.getLimit() != null ? request.getLimit() : 6
+            );
+
+            if (recommendedHotelIds.isEmpty()) {
+                return ResponseEntity.ok(new RecommendationResponse(
+                    java.util.Collections.emptyList(),
+                    request.getCity(),
+                    "No recommendations available. Try booking and reviewing hotels to get personalized suggestions!"
+                ));
+            }
+
+            // Get hotel details for recommended IDs
+            List<HotelDTO> recommendedHotels = recommendedHotelIds.stream()
+                .map(hotelId -> hotelService.getHotelById(hotelId))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .map(HotelDTO::fromEntity)
+                .collect(Collectors.toList());
+
+            String message = String.format("Found %d personalized recommendations%s", 
+                recommendedHotels.size(), 
+                request.getCity() != null ? " in " + request.getCity() : "");
+
+            return ResponseEntity.ok(new RecommendationResponse(recommendedHotels, request.getCity(), message));
 
         } catch (Exception e) {
-            results.put("error", e.getMessage());
-            results.put("message", "CRUD test failed");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(results);
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Failed to get recommendations: " + e.getMessage());
         }
+    }
+
+    // Request DTO for recommendations
+    public static class RecommendationRequest {
+        private Long userId;
+        private String city;
+        private Integer limit;
+
+        public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
+        
+        public String getCity() { return city; }
+        public void setCity(String city) { this.city = city; }
+        
+        public Integer getLimit() { return limit; }
+        public void setLimit(Integer limit) { this.limit = limit; }
+    }
+
+    // Response DTO for recommendations
+    public static class RecommendationResponse {
+        private List<HotelDTO> recommendations;
+        private String city;
+        private String message;
+
+        public RecommendationResponse(List<HotelDTO> recommendations, String city, String message) {
+            this.recommendations = recommendations;
+            this.city = city;
+            this.message = message;
+        }
+
+        public List<HotelDTO> getRecommendations() { return recommendations; }
+        public void setRecommendations(List<HotelDTO> recommendations) { this.recommendations = recommendations; }
+        
+        public String getCity() { return city; }
+        public void setCity(String city) { this.city = city; }
+        
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
     }
 }

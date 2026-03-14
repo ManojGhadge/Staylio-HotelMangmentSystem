@@ -20,6 +20,9 @@ public class Admin {
     @Column(nullable = false)
     private String phone;
     
+    @Column(nullable = false)
+    private String password;
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
@@ -30,10 +33,11 @@ public class Admin {
     public Admin() {
     }
     
-    public Admin(String name, String email, String phone) {
+    public Admin(String name, String email, String phone, String password) {
         this.name = name;
         this.email = email;
         this.phone = phone;
+        this.password = password;
     }
     
     // JPA lifecycle methods
@@ -79,6 +83,14 @@ public class Admin {
     
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+    
+    public String getPassword() {
+        return password;
+    }
+    
+    public void setPassword(String password) {
+        this.password = password;
     }
     
     public LocalDateTime getCreatedAt() {

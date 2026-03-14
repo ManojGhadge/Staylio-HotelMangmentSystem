@@ -13,30 +13,23 @@ import java.util.Map;
 @RequestMapping("/api/host")
 @CrossOrigin(origins = "*")
 public class HostProfileController {
-    
+
     @Autowired
     private HostService hostService;
-    
+
     // Get host profile by ID
     @GetMapping("/profile/{hostId}")
     public ResponseEntity<Map<String, Object>> getHostProfile(@PathVariable Long hostId) {
         Map<String, Object> response = new HashMap<>();
-        
+
         try {
             Host host = hostService.getHostById(hostId);
-            
-            // Check if host is approved
-            if (host.getStatus() != Host.HostStatus.APPROVED) {
-                response.put("success", false);
-                response.put("message", "Access denied. Host not approved.");
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
-            }
-            
+
             response.put("success", true);
-            response.put("host", createHostProfileResponse(host));
-            
+            response.put("data", createHostProfileResponse(host));
+
             return ResponseEntity.ok(response);
-            
+
         } catch (RuntimeException e) {
             response.put("success", false);
             response.put("message", "Host not found");
@@ -47,28 +40,22 @@ public class HostProfileController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-    
+
     // Update host profile
     @PutMapping("/profile/{hostId}")
     public ResponseEntity<Map<String, Object>> updateHostProfile(
-            @PathVariable Long hostId, 
+            @PathVariable Long hostId,
             @RequestBody HostProfileUpdateRequest request) {
         Map<String, Object> response = new HashMap<>();
-        
+
         try {
             Host existingHost = hostService.getHostById(hostId);
-            
-            // Check if host is approved
-            if (existingHost.getStatus() != Host.HostStatus.APPROVED) {
-                response.put("success", false);
-                response.put("message", "Access denied. Host not approved.");
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
-            }
-            
+
             // Update host details
             Host hostDetails = new Host();
             hostDetails.setOwnerName(request.getOwnerName());
-            hostDetails.setEmail(request.getEmail());
+            // Email cannot be changed - always use existing email
+            hostDetails.setEmail(existingHost.getEmail());
             hostDetails.setPhone(request.getPhone());
             hostDetails.setCompanyName(request.getCompanyName());
             hostDetails.setBusinessAddress(request.getBusinessAddress());
@@ -76,24 +63,20 @@ public class HostProfileController {
             hostDetails.setPayoutDetails(request.getPayoutDetails());
             // Don't allow status change from host profile update
             hostDetails.setStatus(existingHost.getStatus());
-            
+
             Host updatedHost = hostService.updateHost(hostId, hostDetails);
-            
+
             response.put("success", true);
             response.put("message", "Profile updated successfully");
-            response.put("host", createHostProfileResponse(updatedHost));
-            
+            response.put("data", createHostProfileResponse(updatedHost));
+
             return ResponseEntity.ok(response);
-            
+
         } catch (RuntimeException e) {
             if (e.getMessage().contains("not found")) {
                 response.put("success", false);
                 response.put("message", "Host not found");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-            } else if (e.getMessage().contains("already exists")) {
-                response.put("success", false);
-                response.put("message", "Email already exists");
-                return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
             }
             response.put("success", false);
             response.put("message", "Update failed: " + e.getMessage());
@@ -104,7 +87,7 @@ public class HostProfileController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-    
+
     private Map<String, Object> createHostProfileResponse(Host host) {
         Map<String, Object> profile = new HashMap<>();
         profile.put("id", host.getId());
@@ -120,37 +103,72 @@ public class HostProfileController {
         profile.put("updatedAt", host.getUpdatedAt());
         return profile;
     }
-    
+
     // Request DTO for profile update
     public static class HostProfileUpdateRequest {
         private String ownerName;
-        private String email;
+        private String email; // Will be ignored in update
         private String phone;
         private String companyName;
         private String businessAddress;
         private String kycDocumentUrl;
         private String payoutDetails;
-        
+
         // Getters and Setters
-        public String getOwnerName() { return ownerName; }
-        public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
-        
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-        
-        public String getPhone() { return phone; }
-        public void setPhone(String phone) { this.phone = phone; }
-        
-        public String getCompanyName() { return companyName; }
-        public void setCompanyName(String companyName) { this.companyName = companyName; }
-        
-        public String getBusinessAddress() { return businessAddress; }
-        public void setBusinessAddress(String businessAddress) { this.businessAddress = businessAddress; }
-        
-        public String getKycDocumentUrl() { return kycDocumentUrl; }
-        public void setKycDocumentUrl(String kycDocumentUrl) { this.kycDocumentUrl = kycDocumentUrl; }
-        
-        public String getPayoutDetails() { return payoutDetails; }
-        public void setPayoutDetails(String payoutDetails) { this.payoutDetails = payoutDetails; }
+        public String getOwnerName() {
+            return ownerName;
+        }
+
+        public void setOwnerName(String ownerName) {
+            this.ownerName = ownerName;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public void setPhone(String phone) {
+            this.phone = phone;
+        }
+
+        public String getCompanyName() {
+            return companyName;
+        }
+
+        public void setCompanyName(String companyName) {
+            this.companyName = companyName;
+        }
+
+        public String getBusinessAddress() {
+            return businessAddress;
+        }
+
+        public void setBusinessAddress(String businessAddress) {
+            this.businessAddress = businessAddress;
+        }
+
+        public String getKycDocumentUrl() {
+            return kycDocumentUrl;
+        }
+
+        public void setKycDocumentUrl(String kycDocumentUrl) {
+            this.kycDocumentUrl = kycDocumentUrl;
+        }
+
+        public String getPayoutDetails() {
+            return payoutDetails;
+        }
+
+        public void setPayoutDetails(String payoutDetails) {
+            this.payoutDetails = payoutDetails;
+        }
     }
 }

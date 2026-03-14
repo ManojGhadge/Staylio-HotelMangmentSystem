@@ -1,0 +1,7 @@
+flask
+requests
+groq
+python-dotenv
+mysql-connector-python
+scikit-learn
+numpy

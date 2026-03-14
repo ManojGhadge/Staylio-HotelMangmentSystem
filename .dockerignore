@@ -1,0 +1,9 @@
+# Ignore build artifacts and local files
+**/target
+**/node_modules
+**/.git
+**/.env
+**/dist
+**/__pycache__
+*.md
+*.log

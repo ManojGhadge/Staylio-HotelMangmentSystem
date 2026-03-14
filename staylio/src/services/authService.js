@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8081/api/users';
+const API_BASE_URL = 'http://localhost:8080/api/auth';
 
 class AuthService {
   // Get auth token from localStorage
@@ -27,7 +27,7 @@ class AuthService {
 
   async register(userData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
+      const response = await fetch(`${API_BASE_URL}/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,13 +41,13 @@ class AuthService {
         }),
       });
 
-      const message = await response.text();
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(message || 'Registration failed');
+        throw new Error(data.message || 'Registration failed');
       }
 
-      return { success: true, message };
+      return data;
     } catch (error) {
       throw new Error(error.message || 'Network error occurred');
     }
@@ -66,25 +66,18 @@ class AuthService {
         }),
       });
 
-      const message = await response.text();
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(message || 'Login failed');
+        throw new Error(data.message || 'Login failed');
       }
 
-      // Get user details after successful login
-      const userResponse = await fetch(`${API_BASE_URL}/email/${encodeURIComponent(credentials.email)}`);
-      
-      if (userResponse.ok) {
-        const user = await userResponse.json();
-        
-        // Store user session info
-        localStorage.setItem('staylio_user', JSON.stringify(user));
-        
-        return { success: true, message, user };
-      } else {
-        return { success: true, message };
+      // Store user session info
+      if (data.user) {
+        localStorage.setItem('staylio_user', JSON.stringify(data.user));
       }
+      
+      return data;
 
     } catch (error) {
       throw new Error(error.message || 'Network error occurred');
@@ -156,6 +149,46 @@ class AuthService {
     } catch (error) {
       console.error('Session validation error:', error);
       return false;
+    }
+  }
+
+  // Password Reset Methods
+  async forgotPassword(email) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      return await response.json();
+    } catch (error) {
+      throw new Error(error.message || 'Network error');
+    }
+  }
+
+  async verifyOtp(email, otp) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      });
+      return await response.json();
+    } catch (error) {
+      throw new Error(error.message || 'Network error');
+    }
+  }
+
+  async resetPassword(email, otp, newPassword) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, newPassword })
+      });
+      return await response.json();
+    } catch (error) {
+      throw new Error(error.message || 'Network error');
     }
   }
 }

@@ -13,10 +13,13 @@ import java.util.Map;
 @RequestMapping("/api/hosts")
 @CrossOrigin(origins = "*")
 public class HostController {
-    
+
     @Autowired
     private HostService hostService;
-    
+
+    @Autowired
+    private com.staylio.backend.Service.EmailService emailService;
+
     // GET - Get all hosts
     @GetMapping
     public ResponseEntity<List<Host>> getAllHosts() {
@@ -27,7 +30,7 @@ public class HostController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
     // GET - Get all pending hosts
     @GetMapping("/pending")
     public ResponseEntity<List<Host>> getPendingHosts() {
@@ -38,7 +41,7 @@ public class HostController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
     // GET - Get host by ID
     @GetMapping("/{id}")
     public ResponseEntity<Host> getHostById(@PathVariable Long id) {
@@ -51,7 +54,7 @@ public class HostController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
     // POST - Create new host
     @PostMapping
     public ResponseEntity<Host> createHost(@RequestBody Host host) {
@@ -67,7 +70,7 @@ public class HostController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
     // PUT - Update host
     @PutMapping("/{id}")
     public ResponseEntity<Host> updateHost(@PathVariable Long id, @RequestBody Host hostDetails) {
@@ -85,7 +88,7 @@ public class HostController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
     // DELETE - Delete host
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteHost(@PathVariable Long id) {
@@ -98,12 +101,23 @@ public class HostController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
     // PUT - Approve host
     @PutMapping("/{id}/approve")
     public ResponseEntity<Host> approveHost(@PathVariable Long id) {
         try {
             Host approvedHost = hostService.approveHost(id);
+
+            // Send approval email
+            try {
+                emailService.sendHostApprovalEmail(
+                        approvedHost.getEmail(),
+                        approvedHost.getOwnerName(),
+                        approvedHost.getCompanyName());
+            } catch (Exception emailEx) {
+                System.err.println("Failed to send host approval email: " + emailEx.getMessage());
+            }
+
             return ResponseEntity.ok(approvedHost);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -111,13 +125,24 @@ public class HostController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
     // PUT - Reject host
     @PutMapping("/{id}/reject")
     public ResponseEntity<Host> rejectHost(@PathVariable Long id, @RequestBody Map<String, String> request) {
         try {
             String reason = request.get("reason");
             Host rejectedHost = hostService.rejectHost(id, reason);
+
+            // Send rejection email
+            try {
+                emailService.sendHostRejectionEmail(
+                        rejectedHost.getEmail(),
+                        rejectedHost.getOwnerName(),
+                        reason);
+            } catch (Exception emailEx) {
+                System.err.println("Failed to send host rejection email: " + emailEx.getMessage());
+            }
+
             return ResponseEntity.ok(rejectedHost);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -125,7 +150,7 @@ public class HostController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    
+
     // GET - Check if email exists
     @GetMapping("/exists/email/{email}")
     public ResponseEntity<Boolean> checkEmailExists(@PathVariable String email) {
